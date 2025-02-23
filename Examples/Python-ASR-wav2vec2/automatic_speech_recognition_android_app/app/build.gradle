@@ -54,7 +54,17 @@ android {
                 options "--trusted-host", "pypi.python.org"
                 options "--trusted-host", "chaquo.com"
                 options "--trusted-host", "https://huggingface.co/"
+                // options "--index-url", "https://pypi.tuna.tsinghua.edu.cn/simple/"
+                // options "--extra-index-url", "http://pypi.mirrors.ustc.edu.cn/simple/"
+                // options "--index-url", "https://mirrors.aliyun.com/pypi/simple"
+                // options "--trusted-host", "mirrors.aliyun.com"
+                // options "--trusted-host", "tuna.tsinghua.edu.cn"
+                // options "--trusted-host", "pypi.mirrors.ustc.edu.cn"
 
+                options "--trusted-host", "files.pythonhosted.org"
+                options "--trusted-host", "pypi.org"
+                options "--trusted-host", "pypi.python.org"
+                options "--trusted-host", "chaquo.com"
 
                 install "numpy"
                 install "torch==1.8.1"
