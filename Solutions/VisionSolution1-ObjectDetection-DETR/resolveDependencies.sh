@@ -6,13 +6,12 @@
 #RESOLVING DEPENDENCIES
 
 # steps to copy opencv
-wget https://sourceforge.net/projects/opencvlibrary/files/4.5.5/opencv-4.5.5-android-sdk.zip/download
-unzip download
-rm download
+wget https://sourceforge.net/projects/opencvlibrary/files/4.5.5/opencv-4.5.5-android-sdk.zip
+unzip opencv-4.5.5-android-sdk.zip
+# rm download
 mkdir sdk
 mv OpenCV-android-sdk/sdk/* sdk
-rm -r OpenCV-android-sdk
-
+# rm -r OpenCV-android-sdk
 
 # Check if SNPE_ROOT is set ?
 [ -z "$SNPE_ROOT" ] && echo "SNPE_ROOT not set" && exit -1 || echo "SNPE Root = ${SNPE_ROOT}"
