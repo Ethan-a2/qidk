@@ -207,8 +207,8 @@ bool executeDLC(cv::Mat &img, int orig_width, int orig_height, int &numberofobj,
         return false;
     }
 
-    std::string name_out_boxes = "885";
-    std::string name_out_classes =  "877";
+    std::string name_out_boxes = "893";  //885
+    std::string name_out_classes =  "885";  //877
 
     ATrace_endSection();
     gettimeofday(&start_time, NULL);
@@ -221,10 +221,10 @@ bool executeDLC(cv::Mat &img, int orig_width, int orig_height, int &numberofobj,
     seconds = end_time.tv_sec - start_time.tv_sec; //seconds
     useconds = end_time.tv_usec - start_time.tv_usec; //milliseconds
     milli_time = ((seconds) * 1000 + useconds/1000.0);
-    //LOGI("Inference time %f ms", milli_time);
+    LOGI("Inference time %f ms", milli_time);
 
     if(execStatus== true){
-        LOGI("Exec BB status is true");
+        LOGI("Exec BB status 0 is true");
     }
     else{
         LOGE("Exec BB status is false");
@@ -232,56 +232,145 @@ bool executeDLC(cv::Mat &img, int orig_width, int orig_height, int &numberofobj,
         return false;
     }
 
+    LOGI("Exec BB status 1 is true");
 
-    std::vector<float32_t> BBout_boxcoords = applicationOutputBuffers.at(name_out_boxes);
-    std::vector<float32_t> BBout_class = applicationOutputBuffers.at(name_out_classes);
+    // std::vector<float32_t> BBout_boxcoords = applicationOutputBuffers.at(name_out_boxes);
+    // std::vector<float32_t> BBout_class = applicationOutputBuffers.at(name_out_classes);
+
+    #include <sstream> // 用于字符串流
+
+    LOGI("applicationOutputBuffers values:");
+    for (const auto& pair : applicationOutputBuffers) {
+        if (pair.second.empty()) {
+            LOGI("  %s: (empty)", pair.first.c_str());
+        } else {
+            std::string values_str; // 存储浮点数值的字符串
+            for (float32_t value : pair.second) {
+                values_str += std::to_string(value) + " ";
+            }
+            LOGI("--  %s: %s", pair.first.c_str(), values_str.c_str());
+        }
+    }
+
+    LOGI("applicationInputBuffers values:");
+    for (const auto& pair : applicationInputBuffers) {
+        if (pair.second.empty()) {
+            LOGI("  %s: (empty)", pair.first.c_str());
+        } else {
+            std::string values_str; // 存储浮点数值的字符串
+            for (float32_t value : pair.second) {
+                values_str += std::to_string(value) + " ";
+            }
+            LOGI("--  %s: %s", pair.first.c_str(), values_str.c_str());
+        }
+    }
+
+    std::vector<float32_t> BBout_boxcoords; // 初始化一个空的向量，防止后续使用BBout_boxcoords时崩溃
+    // 添加检查name_out_boxes是否存在于applicationOutputBuffers的日志
+    if (applicationOutputBuffers.find(name_out_boxes) == applicationOutputBuffers.end()) {
+        LOGE("Error: name_out_boxes (%s) not found in applicationOutputBuffers.", name_out_boxes.c_str());
+        // 可以选择在这里返回或抛出异常，具体取决于你的错误处理策略
+        mtx.unlock();
+        return false;
+    } else {
+        BBout_boxcoords = applicationOutputBuffers.at(name_out_boxes);
+    }
+
+
+    std::vector<float32_t> BBout_class; // 初始化一个空的向量，防止后续使用BBout_class时崩溃
+    // 添加检查name_out_classes是否存在于applicationOutputBuffers的日志
+    if (applicationOutputBuffers.find(name_out_classes) == applicationOutputBuffers.end()) {
+        LOGE("Error: name_out_classes (%s) not found in applicationOutputBuffers.", name_out_classes.c_str());
+        // 可以选择在这里返回或抛出异常，具体取决于你的错误处理策略
+        mtx.unlock();
+        return false;
+    } else {
+        BBout_class = applicationOutputBuffers.at(name_out_classes);
+    }
+
+
+    LOGI("Exec BB status 2 is true");
 
     std::vector<BoxCornerEncoding> Boxlist;
     std::vector<std::string> Classlist;
 
+    LOGI("Exec BB status 3 is true");
+
     //Post Processing
-    for(int i =0;i<(2100);i++)  //TODO change value of 2100 to soft value
+    const int num_boxes = 2100; // Number of bounding boxes predicted by the model. This should be a soft value determined by the model output shape.
+    LOGI("Starting post-processing for %d boxes", num_boxes);
+
+    for (int i = 0; i < num_boxes; ++i) // Iterate through each predicted bounding box
     {
-        int start = i*80;
-        int end = (i+1)*80;
+        int start = i * 80;            // Starting index of the class probabilities for the current box
+        int end = (i + 1) * 80;          // Ending index of the class probabilities for the current box
 
-        auto it = max_element (BBout_class.begin()+start, BBout_class.begin()+end);
-        int index = distance(BBout_class.begin()+start, it);
+        // Find the class with the highest probability for the current box
+        auto it = std::max_element(BBout_class.begin() + start, BBout_class.begin() + end);
 
-        std::string classname = classnamemapping[index];
-        if(*it>=0.5 )
-        {
-            int x1 = BBout_boxcoords[i * 4 + 0];
-            int y1 = BBout_boxcoords[i * 4 + 1];
-            int x2 = BBout_boxcoords[i * 4 + 2];
-            int y2 = BBout_boxcoords[i * 4 + 3];
-            Boxlist.push_back(BoxCornerEncoding(x1, y1, x2, y2,*it,classname));
+        // Calculate the index of the highest probability class
+        int index = std::distance(BBout_class.begin() + start, it);
+
+        // Retrieve the class name from the mapping
+        std::string classname = classnamemapping.at(index); //Using .at() for bounds checking to prevent crashes
+
+        // Check if the highest probability is above the confidence threshold (0.5)
+        if (*it >= 0.5) {
+            // Extract bounding box coordinates
+            int x1 = static_cast<int>(BBout_boxcoords[i * 4 + 0]); // Cast to int to match the struct definition. Consider float in the struct if that's desired.
+            int y1 = static_cast<int>(BBout_boxcoords[i * 4 + 1]);
+            int x2 = static_cast<int>(BBout_boxcoords[i * 4 + 2]);
+            int y2 = static_cast<int>(BBout_boxcoords[i * 4 + 3]);
+
+            // Create a BoxCornerEncoding object and add it to the list
+            Boxlist.emplace_back(x1, y1, x2, y2, *it, classname);
+
+            LOGI("Detected box %d: x1=%d, y1=%d, x2=%d, y2=%d, confidence=%f, class=%s",
+                 i, x1, y1, x2, y2, *it, classname.c_str());
+        } else {
+            LOGI("Box %d discarded due to low confidence: confidence=%f, class=%s", i, *it, classname.c_str());
         }
     }
 
-    //LOGI("Boxlist size:: %d",Boxlist.size());
-    std::vector<BoxCornerEncoding> reslist = NonMaxSuppression(Boxlist,0.20);
-    //LOGI("reslist ssize %d", reslist.size());
+    LOGI("Initial Boxlist size: %zu", Boxlist.size());
 
-    numberofobj = reslist.size();
-    float ratio_2 = orig_width/320.0f;
-    float ratio_1 = orig_height/320.0f;
-    //LOGI("ratio1 %f :: ratio_2 %f",ratio_1,ratio_2);
+    // Apply Non-Maximum Suppression to filter overlapping boxes
+    std::vector<BoxCornerEncoding> reslist = NonMaxSuppression(Boxlist, 0.20);
 
-    for(int k=0;k<numberofobj;k++) {
-        float top,bottom,left,right;
-        left = reslist[k].y1 * ratio_1;   //y1
-        right = reslist[k].y2 * ratio_1;  //y2
+    LOGI("reslist size after NMS: %zu", reslist.size());
 
-        bottom = reslist[k].x1 * ratio_2;  //x1
-        top = reslist[k].x2 * ratio_2;   //x2
+    numberofobj = reslist.size(); // Update the number of detected objects
 
-        //LOGI("Coords:: x1:%d :: y1:%d :: x2:%d :: y2:%d",reslist[0].x1,reslist[0].y1,reslist[0].x2,reslist[0].y2);
-        //LOGI("after mul: %f %f %f %f",bottom, left, top, right );
+    // Calculate scaling ratios to map normalized coordinates to original image dimensions
+    float ratio_2 = orig_width / 320.0f;
+    float ratio_1 = orig_height / 320.0f;
 
-        std::vector<float> singleboxcoords{top, bottom, left, right, milli_time};
+    LOGI("Scaling ratios: ratio_1=%f, ratio_2=%f", ratio_1, ratio_2);
+
+    // Process the remaining bounding boxes after NMS
+    for (int k = 0; k < numberofobj; ++k) {
+        float top, bottom, left, right;
+
+        // Apply scaling ratios to bounding box coordinates
+        left = reslist[k].y1 * ratio_1;   // y1
+        right = reslist[k].y2 * ratio_1;  // y2
+        bottom = reslist[k].x1 * ratio_2;  // x1
+        top = reslist[k].x2 * ratio_2;    // x2
+
+        LOGI("Original Coordinates (unscaled): x1=%d, y1=%d, x2=%d, y2=%d", reslist[k].x1, reslist[k].y1, reslist[k].x2, reslist[k].y2);
+        LOGI("Scaled Coordinates: bottom=%f, left=%f, top=%f, right=%f", bottom, left, top, right);
+
+        // Create a vector containing the processed bounding box coordinates and timestamp
+        std::vector<float> singleboxcoords{top, bottom, left, right, static_cast<float>(milli_time)};  //Consider time type.
+
+        // Add the bounding box coordinates to the list
         BB_coords.push_back(singleboxcoords);
+
+        // Add the object label to the list
         BB_names.push_back(reslist[k].objlabel);
+
+        LOGI("Added box %d to output: top=%f, bottom=%f, left=%f, right=%f, class=%s",
+             k, top, bottom, left, right, reslist[k].objlabel.c_str());
     }
 
     ATrace_endSection();

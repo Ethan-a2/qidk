@@ -6,12 +6,12 @@
 #RESOLVING DEPENDENCIES
 
 # steps to copy opencv
-wget https://sourceforge.net/projects/opencvlibrary/files/4.5.5/opencv-4.5.5-android-sdk.zip/download
-unzip download
-rm download
-mkdir sdk
-mv OpenCV-android-sdk/sdk/* sdk
-rm -r OpenCV-android-sdk
+# wget https://sourceforge.net/projects/opencvlibrary/files/4.5.5/opencv-4.5.5-android-sdk.zip/download
+# unzip download
+# rm download
+# mkdir sdk
+# mv OpenCV-android-sdk/sdk/* sdk
+# rm -r OpenCV-android-sdk
 
 # Check if SNPE_ROOT is set ?
 [ -z "$SNPE_ROOT" ] && echo "SNPE_ROOT not set" && exit -1 || echo "SNPE Root = ${SNPE_ROOT}"
@@ -36,3 +36,5 @@ cp snpe-release/snpe-release/jni/arm64-v8a/libSnpeHtpV73Skel.so app/src/main/jni
 cp snpe-release/snpe-release/jni/arm64-v8a/libSnpeHtpV73Stub.so app/src/main/jniLibs/arm64-v8a/
 cp snpe-release/snpe-release/jni/arm64-v8a/libSnpeHtpV75Skel.so app/src/main/jniLibs/arm64-v8a/
 cp snpe-release/snpe-release/jni/arm64-v8a/libSnpeHtpV75Stub.so app/src/main/jniLibs/arm64-v8a/
+
+cp ./models/Quant_yoloNas_s_320.dlc app/src/main/assets/
